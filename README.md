@@ -1,11 +1,11 @@
-##Hardware in the loop tools for PX4 Firmware
+##Hardware in the loop tool for PX4 Firmware
 
-This is a tool for running hardware-in-the-loop simulations for the px4 autopilot.
+This is a tool for running hardware-in-the-loop (HIL) simulations for the px4 autopilot.
 
 ###HIL modes:
 
-* State-level: HIL tests the control and guidance systems.
-* Sensor-level: HIL tests the navigation system in addition to the control, and guidance systems. This requires a lot of data to be sent to the vehicle and a high baudrate.
+* State-level HIL: tests the control and guidance systems.
+* Sensor-level HIL: tests the navigation system in addition to the control, and guidance systems. This requires a lot of data to be sent to the vehicle and a high baudrate.
 
 ## Dependencies
 
