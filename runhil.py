@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'mo
 
 import hangar
 import gcs
+import attack
 from constants import *
 
 # local imports
@@ -59,7 +60,7 @@ class SensorHIL(object):
         self.waypoints = waypoints
         self.mode = mode
 
-        self.attack = None
+        self.attack = attack.Attack('throttle', 'aileron')
         self.ac = hangar.BasicAircraft(self.attack)
         self.jsb = None
         self.jsb_console = None
@@ -240,6 +241,7 @@ class SensorHIL(object):
         self.set_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED, True)
 
         # resume simulation
+        self.attack.set_sim_start()
         return time.time()
 
     def process_jsb_input(self):
@@ -362,6 +364,16 @@ class SensorHIL(object):
             self.frame_count = 0
             self.last_report = time.time()
 
+            iterationFinished, simulationFinished = self.attack.update(None)
+            if iterationFinished:
+                print 'Iteration finished. Reseting simulation.'
+                self.reset_sim()
+            if simulationFinished:
+                print 'Simulation finished. Exiting.'
+                return False
+            else:
+                return True
+            
     def run(self):
         ''' main execution loop '''
 
@@ -373,7 +385,7 @@ class SensorHIL(object):
 
         # run main loop
         while True:
-            self.update();
+            self.update()
 
 if __name__ == "__main__":
     SensorHIL.command_line()
