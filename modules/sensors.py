@@ -7,17 +7,19 @@ classes for sensor models
 import struct, time, numpy
 from math import sin, cos
 
+import noise
 from constants import *
 
 # TODO
 class Pressure(object):
 
-    def __init__(self, time, press_abs, press_diff1, press_diff2, temperature):
+    def __init__(self, time, press_abs, press_diff1, press_diff2, temperature, mean=0, var=0):
         self.time = time
         self.press_abs = press_abs
         self.press_diff1 = press_diff1
         self.press_diff2 = press_diff2
         self.temperature = temperature
+        self.sensor_noise = noise.GaussianNoise(mean, var)
 
     def send_to_mav(self, mav):
         bar2mbar = 1.0e3
@@ -30,7 +32,7 @@ class Pressure(object):
 
     @classmethod
     def default(cls):
-        return cls(time.time(),0,0,0,0)
+        return cls(time.time(),0,0,0,0, mean=0, var=.01)
 
     def from_state(self, state, attack=None):
         ground_press = 1.01325 #bar
@@ -46,14 +48,15 @@ class Pressure(object):
 
         self.time = time.time()
 
-        # TODO INSERT NOISE HERE
+        # Add noise to measurement
+        self.press_abs += self.sensor_noise
 
-        #return cls(time=time.time(), press_abs = pressBar, press_diff1 = press_diff1,
-        #           press_diff2 = press_diff2, temperature = tempC)
 
 class Imu(object):
 
-    def __init__(self, time, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag):
+    def __init__(self, time, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag,
+            acc_mean=0, acc_var=0, gyro_mean=0, gyro_var=0, mag_mean=0, mag_var=0):
+
         self.time = time
         self.xacc = xacc
         self.yacc = yacc
@@ -64,6 +67,10 @@ class Imu(object):
         self.xmag = xmag
         self.ymag = ymag
         self.zmag = zmag
+
+        self.acc_noise = noise.GaussianNoise(acc_mean, acc_var)
+        self.gyro_noise = noise.GaussianNoise(gyro_mean, gyro_var)
+        self.mag_noise = noise.GaussianNoise(mag_mean, mag_var)
 
     def send_to_mav(self, mav):
         try:
@@ -76,7 +83,13 @@ class Imu(object):
 
     @classmethod
     def default(cls):
-        return cls(time.time(),0,0,0,0,0,0,0,0,0)
+        return cls(time.time(),0,0,0,0,0,0,0,0,0,
+            acc_mean = 0,
+            acc_var = .01,
+            gyro_mean = 0,
+            gyro_var = .01,
+            mag_mean = 0,
+            mag_var = .01)
 
     def from_state(self, state, attack=None):
 
@@ -110,13 +123,24 @@ class Imu(object):
 
         self.time = time.time()
 
-        # TODO INSERT NOISE HERE
+        # Add noise to measurement
+        self.xacc += self.acc_noise
+        self.yacc += self.acc_noise
+        self.zacc += self.acc_noise
 
-        #return cls(time.time(), xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag)
+        self.xgyro += self.gyro_noise
+        self.ygyro += self.gyro_noise
+        self.zgyro += self.gyro_noise
+
+        self.xmag += self.mag_noise
+        self.ymag += self.mag_noise
+        self.zmag += self.mag_noise
 
 class Gps(object):
 
-    def __init__(self, time, fix_type, lat, lon, alt, eph, epv, vel, cog, satellites_visible):
+    def __init__(self, time, fix_type, lat, lon, alt, eph, epv, vel, cog, satellites_visible,
+            latlon_mean=0, latlon_var=0, alt_mean=0, alt_var=0, vel_mean=0, vel_var=0):
+
         self.time = time
         self.fix_type = fix_type
         self.lat = lat
@@ -127,6 +151,10 @@ class Gps(object):
         self.vel = vel
         self.cog = cog
         self.satellites_visible = satellites_visible
+
+        self.latlon_noise = noise.GaussianNoise(latlon_mean, latlon_var)
+        self.alt_noise = noise.GaussianNoise(alt_mean, alt_var)
+        self.vel_noise = noise.GaussianNoise(vel_mean, vel_var)
 
     def send_to_mav(self, mav):
         try:
@@ -155,13 +183,19 @@ class Gps(object):
 
         self.time = time.time()
 
-        # TODO INSERT NOISE HERE
-
-        #return cls(time = time.time()*sec2msec, fix_type = 3,
-        #           lat = state.lat, lon = state.lon, alt = state.alt,
-        #           eph = 1.0, epv = 5.0, vel = vel, cog = cog,
-        #           satellites_visible = 10)
+        # Add noise to measurement
+        self.lat += self.latlon_noise
+        self.lon += self.latlon_noise
+        self.alt += self.alt_noise
+        self.vel += self.vel_noise
 
     @classmethod
     def default(cls):
-        return cls(time.time(),0,0,0,0,0,0,0,0,0)
+        return cls(time.time(),0,0,0,0,0,0,0,0,0,
+                latlon_mean = 0,
+                latlon_var = 0.0001,
+                alt_mean = 0,
+                alt_var = 0.1,
+                vel_mean = 0,
+                vel_var = 1
+                )
