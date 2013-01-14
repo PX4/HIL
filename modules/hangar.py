@@ -55,15 +55,15 @@ class BasicAircraft(object):
         self.x.send_to_mav(mav)
 
     def send_imu(self, mav):
-        self.imu = self.imu.from_state(self.x, self.attack)
+        self.imu.from_state(self.x, self.attack)
         self.imu.send_to_mav(mav)
 
     def send_gps(self, mav):
-        self.gps = self.gps.from_state(self.x, self.attack)
+        self.gps.from_state(self.x, self.attack)
         self.gps.send_to_mav(mav)
 
     def send_pressure(self, mav):
-        self.pressure = self.pressure.from_state(self.x, self.attack)
+        self.pressure.from_state(self.x, self.attack)
         self.pressure.send_to_mav(mav)
 
     def send_sensors(self, mav):
