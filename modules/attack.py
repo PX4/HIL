@@ -27,34 +27,35 @@ class AttackValues(object):
         pass
         #set variables
 
-    def pressure_modifications(self, meas):
+    def pressure_modifications(self, pressure):
 
         # TODO ATTACK MODIFICATIONS
 
         #print 'pressure modifications'
 
-        return meas
+        pass
 
-    def imu_modifications(self, meas):
+    def imu_modifications(self, imu):
 
         # TODO ATTACK MODIFICATIONS
 
         #print 'IMU modifications'
 
-        return meas
+        pass
 
-    def gps_modifications(self, meas):
+
+    def gps_modifications(self, gps):
 
         # TODO ATTACK MODIFICATIONS
 
         #print 'GPS modifications'
 
-        return meas
-    
+        pass
+
 
 class Attack(object):
     def __init__(self, attack1, attack2):
-        self.tFinal = 10
+        self.tFinal = 80
         self.enableUpdate = False
 
         self.attackList = self.generate_attacks()
