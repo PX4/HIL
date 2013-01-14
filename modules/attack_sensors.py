@@ -13,23 +13,15 @@ class AttackPressure(object):
         self.pressure = sensors.Pressure(time, press_abs, press_diff1, press_diff2, temperature)
 
     @classmethod
-    def from_sensor(cls, pressure):
-        return cls(pressure.time, pressure.press_abs, pressure.press_diff1, pressure.press_diff2, pressure.temperature)
-
-    @classmethod
     def default(cls):
         return cls(time.time(),0,0,0,0)
 
     def send_to_mav(self, mav):
         self.pressure.send_to_mav(mav)
 
-    @classmethod
-    def from_state(cls, state, attack):
-        meas = cls.from_sensor(sensors.Pressure.from_state(state))
-
-        meas = attack.attackValues.pressure_modifications(meas)
-
-        return meas
+    def from_state(self, state, attack):
+        self.pressure.from_state(state, attack)
+        attack.attackValues.pressure_modifications(self.pressure)
 
 class AttackImu(object):
 
@@ -40,21 +32,13 @@ class AttackImu(object):
         self.imu.send_to_mav(mav)
 
     @classmethod
-    def from_sensor(cls, imu):
-        return cls(imu.time, imu.xacc, imu.yacc, imu.zacc, imu.xgyro, imu.ygyro, imu.zgyro, imu.xmag, imu.ymag, imu.zmag)
-
-    @classmethod
     def default(cls):
         return cls(time.time(),0,0,0,0,0,0,0,0,0)
 
-    @classmethod
-    def from_state(cls, state, attack):
+    def from_state(self, state, attack):
 
-        meas = cls.from_sensor(sensors.Imu.from_state(state))
-
-        meas = attack.attackValues.imu_modifications(meas)
-
-        return meas
+        self.imu.from_state(state, attack)
+        attack.attackValues.imu_modifications(self.imu)
 
 class AttackGps(object):
 
@@ -64,19 +48,10 @@ class AttackGps(object):
     def send_to_mav(self, mav):
         self.gps.send_to_mav(mav)
 
-    @classmethod
-    def from_sensor(cls, gps):
-        return AttackGps(gps.time, gps.fix_type, gps.lat, gps.lon, gps.alt, gps.eph, gps.epv, gps.vel, gps.cog, gps.satellites_visible)
+    def from_state(self, state, attack):
 
-    @classmethod
-    def from_state(cls, state, attack):
-
-        meas = cls.from_sensor(sensors.Gps.from_state(state))
-
-        meas = attack.attackValues.gps_modifications(meas)
-
-        return meas
-
+        self.gps.from_state(state, attack)
+        attack.attackValues.gps_modifications(self.gps)
 
     @classmethod
     def default(cls):
