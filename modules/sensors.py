@@ -32,20 +32,24 @@ class Pressure(object):
     def default(cls):
         return cls(time.time(),0,0,0,0)
 
-    @classmethod
-    def from_state(cls, state, attack=None):
+    def from_state(self, state, attack=None):
         ground_press = 1.01325 #bar
         ground_tempC = 21.0
         tempC = 21.0  # TODO temp variation
         tempAvgK = T0 + (tempC + ground_tempC)/2
         pressBar = ground_press/math.exp(state.alt*(g/R)/tempAvgK)
-        press_diff1 = 0 # TODO, for velocity
-        press_diff2 = 0 # TODO, ?
+
+        self.press_abs = pressBar
+        self.press_diff1 = 0 # TODO, for velocity
+        self.press_diff2 = 0 # TODO, ?
+        self.temperature = tempC
+
+        self.time = time.time()
 
         # TODO INSERT NOISE HERE
 
-        return cls(time=time.time(), press_abs = pressBar, press_diff1 = press_diff1,
-                   press_diff2 = press_diff2, temperature = tempC)
+        #return cls(time=time.time(), press_abs = pressBar, press_diff1 = press_diff1,
+        #           press_diff2 = press_diff2, temperature = tempC)
 
 class Imu(object):
 
@@ -74,18 +78,17 @@ class Imu(object):
     def default(cls):
         return cls(time.time(),0,0,0,0,0,0,0,0,0)
 
-    @classmethod
-    def from_state(cls, state, attack=None):
+    def from_state(self, state, attack=None):
 
         # accelerometer
-        xacc = state.xacc
-        yacc = state.yacc
-        zacc = state.zacc
+        self.xacc = state.xacc
+        self.yacc = state.yacc
+        self.zacc = state.zacc
     
         # gyroscope
-        xgyro = state.p
-        ygyro = state.q
-        zgyro = state.r
+        self.xgyro = state.p
+        self.ygyro = state.q
+        self.zgyro = state.r
 
         # mag field properties
         # setting to constants, should
@@ -101,13 +104,15 @@ class Imu(object):
         magVectB = numpy.transpose(state.C_nb)*magVectN
 
         # magnetometer
-        xmag = magVectB[0,0]
-        ymag = magVectB[1,0]
-        zmag = magVectB[2,0]
+        self.xmag = magVectB[0,0]
+        self.ymag = magVectB[1,0]
+        self.zmag = magVectB[2,0]
+
+        self.time = time.time()
 
         # TODO INSERT NOISE HERE
 
-        return cls(time.time(), xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag)
+        #return cls(time.time(), xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag)
 
 class Gps(object):
 
@@ -133,18 +138,29 @@ class Gps(object):
         except struct.error as e:
             print 'mav gps raw int packet data exceeds int bounds'
 
-    @classmethod
-    def from_state(cls, state, attack=None):
+    def from_state(self, state, attack=None):
         vel = math.sqrt(state.vN*state.vN + state.vE*state.vE)
         cog = math.atan2(state.vE, state.vN)
         if cog < 0: cog += 2*math.pi
 
+        self.fix_type = 3
+        self.lat = state.lat
+        self.lon = state.lon
+        self.alt = state.alt
+        self.eph = 1.0
+        self.epv = 5.0
+        self.vel = vel
+        self.cog = cog
+        self.satellites_visible = 10
+
+        self.time = time.time()
+
         # TODO INSERT NOISE HERE
 
-        return cls(time = time.time()*sec2msec, fix_type = 3,
-                   lat = state.lat, lon = state.lon, alt = state.alt,
-                   eph = 1.0, epv = 5.0, vel = vel, cog = cog,
-                   satellites_visible = 10)
+        #return cls(time = time.time()*sec2msec, fix_type = 3,
+        #           lat = state.lat, lon = state.lon, alt = state.alt,
+        #           eph = 1.0, epv = 5.0, vel = vel, cog = cog,
+        #           satellites_visible = 10)
 
     @classmethod
     def default(cls):
