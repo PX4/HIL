@@ -60,7 +60,7 @@ class SensorHIL(object):
         self.waypoints = waypoints
         self.mode = mode
 
-        self.attack = attack.Attack('throttle', 'aileron')
+        self.attack = attack.Attack('gainAccelX', 'imuGyroNoise')
         self.ac = hangar.BasicAircraft(self.attack)
         self.jsb = None
         self.jsb_console = None
@@ -364,7 +364,7 @@ class SensorHIL(object):
             self.frame_count = 0
             self.last_report = time.time()
 
-            iterationFinished, simulationFinished = self.attack.update(None)
+            iterationFinished, simulationFinished = self.attack.update(self.ac.x)
             if iterationFinished:
                 print 'Iteration finished. Reseting simulation.'
                 self.reset_sim()

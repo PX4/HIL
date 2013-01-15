@@ -9,6 +9,7 @@ from collections import defaultdict
 import plotting as plot
 import pickle
 import numpy
+import noise
 
 class AttackDefintion(object):
 	def __init__(self,nominal,name,units,label,scripts,file_name,variable,attack_values,attack_comment):
@@ -24,8 +25,8 @@ class AttackDefintion(object):
 
 class AttackValues(object):
     def __init__(self):
-        pass
-        #set variables
+        self.xacc_gain = 1
+        self.gyro_noise = noise.GaussianNoise(0, 1)
 
     def pressure_modifications(self, pressure):
 
@@ -39,6 +40,11 @@ class AttackValues(object):
 
         # TODO ATTACK MODIFICATIONS
 
+        imu.xacc *= self.xacc_gain
+
+        imu.xgyro += self.gyro_noise
+        imu.ygyro += self.gyro_noise
+        imu.zgyro += self.gyro_noise
         #print 'IMU modifications'
 
         pass
@@ -114,12 +120,13 @@ class Attack(object):
         return completed
 
     def set_attack_variables(self):
-        attack1_var = self.attack1.attack_values[self.iterator1]
-        attack2_var = self.attack2.attack_values[self.iterator2]
+        self.attackValues.xacc_gain = self.attack1.attack_values[self.iterator1]
+        self.attackValues.gyro_noise.variance = self.attack2.attack_values[self.iterator2]
     
     def set_sim_start(self):
         self.startTime = time.time()
         self.enableUpdate = True
+        self.missionFailed = False
 
     def completed(self):
         plotStructs = plot.generatePlotStructs(self.results, [self.attack1, self.attack2], os.getcwd()+'/')
@@ -130,7 +137,7 @@ class Attack(object):
         plot.generatePlots(plotStructs)
 
 
-    def update(self, fdm):
+    def update(self, state):
         if not self.enableUpdate:
             return False, False
             
@@ -142,13 +149,12 @@ class Attack(object):
 #            if not check_mission_env(fdm, 0):
 #                self.missionFailed = True
 #                self.iterResults['missionFail'].append(tsim)
-#        if not check_flight_env(fdm):
-#            iterationFinished = True
-#            self.iterResults['flightFail'].append(tsim)
-#            if not self.missionFailed:
-#                # if the mission has not already been failed, failing the flight env
-#                # does so
-#                self.iterResults['missionFail'].append(tsim)
+        if not self.check_flight_env(state):
+            iterationFinished = True
+            self.iterResults['flightFail'].append(tsim)
+            if not self.missionFailed:
+                # if the mission has not already been failed, failing the flight env does so
+                self.iterResults['missionFail'].append(tsim)
 
         if tsim > self.tFinal:
             iterationFinished = True
@@ -168,7 +174,7 @@ class Attack(object):
         R = 6371000
         return math.acos(sin(lat1*d2r)*sin(lat2*d2r) + cos(lat1*d2r)*cos(lat2*d2r)*cos((lon2-lon1)*d2r)) * R;
 
-    def check_mission_env(fdm, tsim):
+    def check_mission_env(self, state, tsim):
 
         alt_min = 2500
         alt_max = 3500
@@ -182,8 +188,8 @@ class Attack(object):
         target_start_time = 70
         target_end_time = 80
 
-        lat = fdm.get('latitude', units='degrees')
-        lon = fdm.get('longitude', units='degrees')
+        lat = state.lat
+        lon = state.lon
 
         theater_size = 2000 
         target_window = 150
@@ -206,37 +212,29 @@ class Attack(object):
             return False
 
         # Check that it is within the altitude range
-        alt = fdm.get('altitude', units='meters')
+        alt = state.alt
         #if(alt < alt_min or alt > alt_max):
         #    return False;
 
         return True;
 
-    def check_flight_env(fdm):
-        alt = fdm.get('altitude', units='meters')
+    def check_flight_env(self, x):
+        alt = x.alt
 
-        phi = fdm.get('phi', units='radians')
-        theta = fdm.get('theta', units='radians')
-        psi = fdm.get('psi', units='radians')
+        p = x.p
+        q = x.q
+        r = x.r
 
-        phidot = fdm.get('phidot', units='rps')
-        thetadot = fdm.get('thetadot', units='rps')
-        psidot = fdm.get('psidot', units='rps')
-
-        p = phidot - psidot*sin(theta)
-        q = cos(phi)*thetadot + sin(phi)*cos(theta)*psidot
-        r = -sin(phi)*thetadot + cos(phi)*cos(theta)*psidot
-
-        if math.fabs(p) > math.pi or math.fabs(q) > math.pi or math.fabs(r) > math.pi:
+        if math.fabs(p) > math.pi or math.fabs(q) > math.pi or math.fabs(r) > math.pi or alt <= 20:
+            print '**************************'
+            print '*Flight Envelope Failiure'
+            print '**************************'
             return False
-        if alt <= 0:
+        if alt <= 20:
             return False
 
         return True
 
-
-
-    
     # Generated in attack_cases.ods, don't modify here
     def generate_attacks(self):
         digitalUpdateRate = AttackDefintion(1,
