@@ -81,7 +81,7 @@ class Imu(object):
         xacc = state.xacc
         yacc = state.yacc
         zacc = state.zacc
-    
+
         # gyroscope
         xgyro = state.p
         ygyro = state.q
@@ -91,7 +91,7 @@ class Imu(object):
         # setting to constants, should
         # depend on position
         magFieldStrength = 0.5
-        dip = 0.0*deg2rad
+        dip = 60.0*deg2rad
         dec = 0.0*deg2rad
 
         magVectN = magFieldStrength*numpy.matrix([
@@ -141,7 +141,7 @@ class Gps(object):
 
         # TODO INSERT NOISE HERE
 
-        return cls(time = time.time()*sec2msec, fix_type = 3,
+        return cls(time = time.time(), fix_type = 3,
                    lat = state.lat, lon = state.lon, alt = state.alt,
                    eph = 1.0, epv = 5.0, vel = vel, cog = cog,
                    satellites_visible = 10)

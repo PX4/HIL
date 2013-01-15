@@ -40,10 +40,6 @@ class BasicAircraft(object):
 
     def update_state(self, fdm):
         self.x = aircraft.State.from_fdm(fdm)
-        #self.x.p = 0
-        #self.x.q = 0
-        #self.x.r = 0
-        #self.x.set_attitude(0,0,90*deg2rad)
 
     def update_controls(self, m):
         self.u = aircraft.Controls.from_mavlink(m)
