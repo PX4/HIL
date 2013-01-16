@@ -100,7 +100,7 @@ class State(object):
     def send_to_mav(self, mav):
         try:
             mav.hil_state_send(
-                self.time*sec2msec, self.phi, self.theta, self.psi,
+                self.time*sec2usec, self.phi, self.theta, self.psi,
                 self.p, self.q, self.r,
                 int(self.lat*rad2degE7), int(self.lon*rad2degE7), int(self.alt*m2mm),
                 int(self.vN*m2cm), int(self.vE*m2cm), int(self.vD*m2cm),

@@ -248,6 +248,7 @@ class SensorHIL(object):
         if len(buf) == 408:
             self.fdm.parse(buf)
             self.ac.update_state(self.fdm)
+            #self.ac.update_state_test(20, 270*math.pi/180)
         else:
             self.jsbsim_bad_packet  += 1
             print 'jsbsim bad packets: ', self.jsbsim_bad_packet

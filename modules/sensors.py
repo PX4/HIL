@@ -22,7 +22,7 @@ class Pressure(object):
     def send_to_mav(self, mav):
         bar2mbar = 1.0e3
         try:
-            mav.raw_pressure_send(self.time*sec2msec,
+            mav.raw_pressure_send(self.time*sec2usec,
                              self.press_abs*bar2mbar, self.press_diff1*bar2mbar,
                              self.press_diff2*bar2mbar, self.temperature*100)
         except struct.error as e:
@@ -63,7 +63,7 @@ class Imu(object):
 
     def send_to_mav(self, mav):
         try:
-            mav.raw_imu_send(self.time*sec2msec,
+            mav.raw_imu_send(self.time*sec2usec,
                              self.xacc*mpss2mg, self.yacc*mpss2mg, self.zacc*mpss2mg,
                              self.xgyro*rad2mrad, self.ygyro*rad2mrad, self.zgyro*rad2mrad,
                              self.xmag*ga2mga, self.ymag*ga2mga, self.zmag*ga2mga)
@@ -125,7 +125,7 @@ class Gps(object):
 
     def send_to_mav(self, mav):
         try:
-            mav.gps_raw_int_send(self.time*sec2msec,
+            mav.gps_raw_int_send(self.time*sec2usec,
                              self.fix_type,
                              self.lat*rad2degE7, self.lon*rad2degE7, self.alt*m2mm,
                              self.eph*m2cm, self.epv*m2cm, self.vel*m2cm, self.cog*100*rad2deg,

@@ -4,6 +4,7 @@ import time
 
 import aircraft
 import sensors
+from math import cos, sin, pi
 
 class BasicAircraft(object):
 
@@ -38,8 +39,36 @@ class BasicAircraft(object):
 
         self.attack = attack
 
+        # test variables
+        self.t0 = time.time()
+
     def update_state(self, fdm):
         self.x = aircraft.State.from_fdm(fdm)
+
+    def update_state_test(self, sog, cog):
+        t = time.time()
+        dt = t - self.t0
+        r_earth = 6378100
+        vN = sog*cos(cog)
+        vE = sog*sin(cog)
+        vD = 0
+        phi = 0
+        theta = 0
+        psi = cog
+        latDot = vN/r_earth
+        lat = latDot*dt
+        lonDot = vE/r_earth/cos(lat)
+        lon = lonDot*dt
+        alt = 1000 -vD*dt
+        self.x = aircraft.State(time = t,
+            phi=phi, theta=theta, psi=psi,
+            p=0, q=0, r=0,
+            lat=lat, lon=lon, alt=alt,
+            vN=vN, vE=vE, vD=vD, xacc=0, yacc=0, zacc=-9.806)
+        #print 'latDot:', latDot, 'lonDot:', lonDot
+        #print 'vN:', vN, 'vE:', vE, 'vD:', vD
+        #print 'lat:', lat, 'lon:', lon, 'alt:', alt,
+        #print 'phi:', phi, 'theta:', theta, 'psi:', psi
 
     def update_controls(self, m):
         self.u = aircraft.Controls.from_mavlink(m)
