@@ -177,7 +177,7 @@ class Gps(object):
         alt = state.alt + self.alt_noise
         sog = sog + self.vel_noise
 
-        return cls(time = time.time(), fix_type = 3,
+        self.__init__(time = time.time(), fix_type = 3,
                    lat = lat, lon = lon, alt = alt,
                    eph = 1.0, epv = 5.0, vel = sog, cog = cog,
                    satellites_visible = 10)
