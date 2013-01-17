@@ -42,15 +42,16 @@ class SensorHIL(object):
         parser.add_argument('--gcs', help='gcs host', default='localhost:14550')
         parser.add_argument('--waypoints', help='waypoints file', default='data/sf_waypoints.txt')
         parser.add_argument('--mode', help="hil mode (sensor or state)", default='sensor')
+        parser.add_argument('--fgout', help="flight gear output", default=None)
         args = parser.parse_args()
         if args.master is None:
             raise IOError('must specify device with --dev')
         if args.mode not in ['sensor','state']:
             raise IOError('mode must be sensor or state')
-        inst = cls(master_dev=args.master, baudrate=args.baud, script=args.script, options=args.options, gcs_dev=args.gcs, waypoints=args.waypoints, mode = args.mode)
+        inst = cls(master_dev=args.master, baudrate=args.baud, script=args.script, options=args.options, gcs_dev=args.gcs, waypoints=args.waypoints, mode = args.mode, fgout=args.fgout)
         inst.run()
 
-    def __init__(self, master_dev, baudrate, script, options, gcs_dev, waypoints, mode):
+    def __init__(self, master_dev, baudrate, script, options, gcs_dev, waypoints, mode, fgout):
         ''' default ctor 
         @param dev device
         @param baud baudrate
@@ -81,6 +82,13 @@ class SensorHIL(object):
         self.init_mavlink(master_dev, gcs_dev, baudrate)
         self.wpm = gcs.WaypointManager(self.master)
 
+        self.fg_out = None
+        self.fg_enable = False
+        if fgout is not None:
+            self.fg_enable = True
+            self.fg_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.fg_out.connect(self.interpret_address(fgout))
+
 
     def __del__(self):
         print 'SensorHil shutting down'
@@ -91,6 +99,11 @@ class SensorHIL(object):
             os.kill(self.jsb.pid, signal.SIGKILL)
             self.jsb.close(force=True)
         util.pexpect_close_all()
+
+    def interpret_address(self, addrstr):
+        a = addrstr.split(':')
+        a[1] = int(a[1])
+        return tuple(a)
 
     def init_mavlink(self, master_dev, gcs_dev, baudrate):
 
@@ -250,6 +263,13 @@ class SensorHIL(object):
         if len(buf) == 408:
             self.fdm.parse(buf)
             self.ac.update_state(self.fdm)
+
+            if self.fg_enable:
+                try:
+                    self.fg_out.send(self.fdm.pack())
+                except socket.error as e:
+                    if e.errno not in [err.ECONNREFUSED]:
+                        raise
         else:
             self.jsbsim_bad_packet  += 1
             print 'jsbsim bad packets: ', self.jsbsim_bad_packet
