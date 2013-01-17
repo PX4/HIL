@@ -25,38 +25,35 @@ class AttackDefintion(object):
 
 class AttackValues(object):
     def __init__(self):
+        self.enable_attack = False
         self.xacc_gain = 1
         self.gyro_noise = noise.GaussianNoise(0, 1)
 
     def pressure_modifications(self, pressure):
 
-        # TODO ATTACK MODIFICATIONS
-
-        #print 'pressure modifications'
-
-        pass
+        if self.enable_attack:
+            # TODO ATTACK MODIFICATIONS
+            #print 'pressure modifications'
+            pass
 
     def imu_modifications(self, imu):
 
-        # TODO ATTACK MODIFICATIONS
+        if self.enable_attack:
 
-        imu.xacc *= self.xacc_gain
+            # TODO ATTACK MODIFICATIONS
 
-        imu.xgyro += self.gyro_noise
-        imu.ygyro += self.gyro_noise
-        imu.zgyro += self.gyro_noise
-        #print 'IMU modifications'
+            imu.xacc *= self.xacc_gain
 
-        pass
-
+            imu.xgyro += self.gyro_noise
+            imu.ygyro += self.gyro_noise
+            imu.zgyro += self.gyro_noise
 
     def gps_modifications(self, gps):
 
-        # TODO ATTACK MODIFICATIONS
-
-        #print 'GPS modifications'
-
-        pass
+        if self.enable_attack:
+            # TODO ATTACK MODIFICATIONS
+            #print 'GPS modifications'
+            pass
 
 
 class Attack(object):
@@ -102,10 +99,12 @@ class Attack(object):
                 for key in self.resultKeys:
                     self.results[key][self.iterator1] = self.iterResults[key]
                 self.iterator2 = 0
+                self.iterResults = defaultdict(list)
 
                 # End of outer loop too (simulation finished)
                 if self.iterator1 == self.innerSize - 1:
                     completed = True
+                    print 'Simulation Complete!'
                 else:
                     self.iterator1 += 1
                     self.iterResults = defaultdict(list)
@@ -114,6 +113,7 @@ class Attack(object):
                 
         # disable updates until the sim time is reset
         self.enableUpdate = False
+        self.attackValues.enable_attack = False
         if not completed:
             self.set_attack_variables()
 
@@ -126,6 +126,7 @@ class Attack(object):
     def set_sim_start(self):
         self.startTime = time.time()
         self.enableUpdate = True
+        self.attackValues.enable_attack = True
         self.missionFailed = False
 
     def completed(self):
