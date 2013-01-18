@@ -5,7 +5,7 @@ runs hil simulation
 '''
 
 # system import
-import sys, struct, time, os, argparse, signal, math
+import sys, struct, time, os, argparse, signal, math, errno
 import pexpect, socket, fdpexpect, select
 import pymavlink.mavutil as mavutil
 
@@ -41,15 +41,16 @@ class SensorHIL(object):
         parser.add_argument('--gcs', help='gcs host', default='localhost:14550')
         parser.add_argument('--waypoints', help='waypoints file', default='data/sf_waypoints.txt')
         parser.add_argument('--mode', help="hil mode (sensor or state)", default='sensor')
+        parser.add_argument('--fgout', help="flight gear output", default=None)
         args = parser.parse_args()
         if args.master is None:
             raise IOError('must specify device with --dev')
         if args.mode not in ['sensor','state']:
             raise IOError('mode must be sensor or state')
-        inst = cls(master_dev=args.master, baudrate=args.baud, script=args.script, options=args.options, gcs_dev=args.gcs, waypoints=args.waypoints, mode = args.mode)
+        inst = cls(master_dev=args.master, baudrate=args.baud, script=args.script, options=args.options, gcs_dev=args.gcs, waypoints=args.waypoints, mode = args.mode, fgout=args.fgout)
         inst.run()
 
-    def __init__(self, master_dev, baudrate, script, options, gcs_dev, waypoints, mode):
+    def __init__(self, master_dev, baudrate, script, options, gcs_dev, waypoints, mode, fgout):
         ''' default ctor 
         @param dev device
         @param baud baudrate
@@ -76,9 +77,16 @@ class SensorHIL(object):
         self.last_report = 0
         self.jsbsim_bad_packet = 0
 
-        self.init_jsbsim()
+        #self.init_jsbsim()
         self.init_mavlink(master_dev, gcs_dev, baudrate)
         self.wpm = gcs.WaypointManager(self.master)
+
+        self.fg_out = None
+        self.fg_enable = False
+        if fgout is not None:
+            self.fg_enable = True
+            self.fg_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.fg_out.connect(self.interpret_address(fgout))
 
 
     def __del__(self):
@@ -163,8 +171,9 @@ class SensorHIL(object):
             time.sleep(0.1)
             if time.time()  - t_start > 5: raise IOError('Failed to set mode flag, check port')
 
-    def wait_for_no_msg(self, msg, period, callback=None):
+    def wait_for_no_msg(self, msg, period, timeout, callback=None):
         done = False
+        t_start = time.time()
         t_last = time.time()
         while not done:
             if callback is not None: callback()
@@ -175,10 +184,16 @@ class SensorHIL(object):
                     t_last = time.time()
             if time.time() - t_last > period:
                 done = True
+            elif time.time() - t_start > timeout:
+                done = False
+                break
             time.sleep(0.001)
+
+        return done
  
-    def wait_for_msg(self, msg, callback=None):
+    def wait_for_msg(self, msg, timeout, callback=None):
         done = False
+        t_start = time.time()
         while not done:
             if callback is not None: callback()
             while self.master.port.inWaiting() > 0:
@@ -187,21 +202,49 @@ class SensorHIL(object):
                 if m.get_type() == msg:
                     done = True
                     break
+            if time.time() - t_start > timeout:
+                done = False
+                break
             time.sleep(0.1)
 
+        return done
+
     def reboot_autopilot(self):
-        # must be in hil mode to reboot from auto/ armed
-        self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
-        print 'rebooting autopilot'
-        # request reboot until no heartbeat received
-        self.wait_for_no_msg('HEARTBEAT',2, self.master.reboot_autopilot)
-        # clear master buffer
-        self.master.reset()
-        self.wait_for_msg('HEARTBEAT')
-        # avoid sending data immediately as this causes boot problem on px4
-        time.sleep(1)
-        # reenable HIL and reset serial (clear buffer)
-        self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
+
+        reboot_successful = False
+        while not reboot_successful:
+
+            # Request reboot until no heartbeat received
+                # do while loop that checks the wait for no message timeout
+                # and resends the reboot if not successfull.
+                # The callback option cannot be used for this, because it
+                # runs at the same speed as the message receive which is
+                # unecessary.
+            shutdown = False
+            while not shutdown:
+                self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
+                print 'Sending reboot to autopilot'
+                self.master.reboot_autopilot()
+
+                # wait for heartbeat timeout, continue looping if not received
+                shutdown = self.wait_for_no_msg(msg='HEARTBEAT', period=2, timeout=6)
+                print shutdown
+
+            print 'Autopilot heartbeat lost (rebooting)'
+
+            # Try to read heartbeat three times before restarting shutdown
+            for i in range(3):
+
+                print 'Attempt %d to read autopilot heartbeat.' % (i+1)
+                # Reset serial comm
+                self.master.reset()
+
+                reboot_successful = self.wait_for_msg('HEARTBEAT', timeout=10)
+                if reboot_successful:
+                    # avoid sending data immediately as this causes boot problem on px4
+                    time.sleep(1)
+                    self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
+                    break
 
     def jsb_set(self, variable, value):
         '''set a JSBSim variable'''
@@ -209,12 +252,24 @@ class SensorHIL(object):
 
     def reset_sim(self):
 
+        if self.jsb is not None:
+            print 'quitting jsbsim'
+            self.jsb.close(force=True)
+            self.jsb_out.close()
+            self.jsb_in.close()
+            #self.jsb_console.close()
+
         # reset autopilot state
         self.reboot_autopilot()
+        time.sleep(5)
+
+
+        self.init_jsbsim()
 
         # reset jsbsim state and then pause simulation
         self.jsb_console.send('resume\n')
         self.jsb_set('simulation/reset',1)
+        self.update()
         self.jsb.expect("\(Trim\) executed")
         self.jsb_console.send('hold\n')
 
@@ -229,7 +284,8 @@ class SensorHIL(object):
         self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
 
         self.jsb_console.send('resume\n')
-
+        self.process_jsb_input()
+        self.ac.send_state(self.master.mav)
         # send initial data
         print 'sending sensor data'
         time_start = time.time()
@@ -248,7 +304,14 @@ class SensorHIL(object):
         if len(buf) == 408:
             self.fdm.parse(buf)
             self.ac.update_state(self.fdm)
-            #self.ac.update_state_test(20, 270*math.pi/180)
+			#self.ac.update_state_test(20, 270*math.pi/180)
+
+            if self.fg_enable:
+                try:
+                    self.fg_out.send(self.fdm.pack())
+                except socket.error as e:
+                    if e.errno not in [errno.ECONNREFUSED]:
+                        raise
         else:
             self.jsbsim_bad_packet  += 1
             print 'jsbsim bad packets: ', self.jsbsim_bad_packet
@@ -363,18 +426,19 @@ class SensorHIL(object):
             self.frame_count = 0
             self.last_report = time.time()
 
+        return True
+
     def run(self):
         ''' main execution loop '''
 
         # start simulation
-        self.jsb_console.logfile = None
         t_hil_state = 0
 
         self.reset_sim()
 
         # run main loop
-        while True:
-            self.update();
+
+        while self.update(): pass
 
 if __name__ == "__main__":
     SensorHIL.command_line()
