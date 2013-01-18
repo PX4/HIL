@@ -37,6 +37,7 @@ class AttackValues(object):
             pass
 
     def imu_modifications(self, imu):
+        #return
 
         if self.enable_attack:
 

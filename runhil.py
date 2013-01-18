@@ -78,7 +78,7 @@ class SensorHIL(object):
         self.last_report = 0
         self.jsbsim_bad_packet = 0
 
-        self.init_jsbsim()
+        #self.init_jsbsim()
         self.init_mavlink(master_dev, gcs_dev, baudrate)
         self.wpm = gcs.WaypointManager(self.master)
 
@@ -258,12 +258,24 @@ class SensorHIL(object):
 
     def reset_sim(self):
 
+        if self.jsb is not None:
+            print 'quitting jsbsim'
+            self.jsb.close(force=True)
+            self.jsb_out.close()
+            self.jsb_in.close()
+            #self.jsb_console.close()
+
         # reset autopilot state
         self.reboot_autopilot()
+        time.sleep(5)
+
+
+        self.init_jsbsim()
 
         # reset jsbsim state and then pause simulation
         self.jsb_console.send('resume\n')
         self.jsb_set('simulation/reset',1)
+        self.update()
         self.jsb.expect("\(Trim\) executed")
         self.jsb_console.send('hold\n')
 
@@ -278,18 +290,21 @@ class SensorHIL(object):
         self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
 
         self.jsb_console.send('resume\n')
-
+        self.process_jsb_input()
+        self.ac.send_state(self.master.mav)
         # send initial data
-        print 'sending sensor data'
-        time_start = time.time()
-        while time.time() - time_start < 5:
-            self.update()
+        #print 'sending sensor data'
+        #time_start = time.time()
+        #while time.time() - time_start < 5:
+        #    self.update()
 
         self.set_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED, True)
         self.set_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED, True)
 
         # resume simulation
         self.attack.set_sim_start()
+
+
         return time.time()
 
     def process_jsb_input(self):
@@ -419,28 +434,29 @@ class SensorHIL(object):
             self.frame_count = 0
             self.last_report = time.time()
 
-            iterationFinished, simulationFinished = self.attack.update(self.ac.x)
+        iterationFinished, simulationFinished = self.attack.update(self.ac.x)
+
+        if simulationFinished:
+            print 'Simulation finished. Exiting.'
+            return False
+        else:
             if iterationFinished:
                 print 'Iteration finished. Reseting simulation.'
                 self.reset_sim()
-            if simulationFinished:
-                print 'Simulation finished. Exiting.'
-                return False
-            else:
-                return True
+
+            return True
             
     def run(self):
         ''' main execution loop '''
 
         # start simulation
-        self.jsb_console.logfile = None
         t_hil_state = 0
 
         self.reset_sim()
 
         # run main loop
-        while True:
-            self.update()
+
+        while self.update(): pass
 
 if __name__ == "__main__":
     SensorHIL.command_line()
