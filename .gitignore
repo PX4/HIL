@@ -2,3 +2,4 @@
 *.png
 *.pkl
 *.pyc
+.DS_Store

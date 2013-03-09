@@ -226,8 +226,11 @@ class SensorHIL(object):
                 print 'Sending reboot to autopilot'
                 self.master.reboot_autopilot()
 
+                shutdown = True;
+
+                # XXX This is only safe if USB is connected, just skip it
                 # wait for heartbeat timeout, continue looping if not received
-                shutdown = self.wait_for_no_msg(msg='HEARTBEAT', period=2, timeout=6)
+                #shutdown = self.wait_for_no_msg(msg='HEARTBEAT', period=2, timeout=10)
                 print shutdown
 
             print 'Autopilot heartbeat lost (rebooting)'
@@ -239,7 +242,7 @@ class SensorHIL(object):
                 # Reset serial comm
                 self.master.reset()
 
-                reboot_successful = self.wait_for_msg('HEARTBEAT', timeout=10)
+                reboot_successful = self.wait_for_msg('HEARTBEAT', timeout=100)
                 if reboot_successful:
                     # avoid sending data immediately as this causes boot problem on px4
                     time.sleep(1)
@@ -261,7 +264,7 @@ class SensorHIL(object):
 
         # reset autopilot state
         self.reboot_autopilot()
-        time.sleep(5)
+        time.sleep(8)
 
 
         self.init_jsbsim()
