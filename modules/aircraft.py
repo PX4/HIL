@@ -31,7 +31,7 @@ class Controls(object):
 
     def send_to_jsbsim(self, jsb_console):
         jsb_console.send('set %s %s\r\n' % ('fcs/aileron-cmd-norm', self.aileron))
-        jsb_console.send('set %s %s\r\n' % ('fcs/elevator-cmd-norm', -self.elevator))
+        jsb_console.send('set %s %s\r\n' % ('fcs/elevator-cmd-norm', self.elevator))
         jsb_console.send('set %s %s\r\n' % ('fcs/rudder-cmd-norm', self.rudder))
         jsb_console.send('set %s %s\r\n' % ('fcs/throttle-cmd-norm', self.throttle))
 
