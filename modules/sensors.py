@@ -32,7 +32,7 @@ class Pressure(object):
 
     @classmethod
     def default(cls):
-        return cls(time.time(),0,0,0,0, mean=0, var=.01)
+        return cls(time.time(),0,0,0,0, mean=0, var=0.000001)
 
     def from_state(self, state, attack=None):
         ground_press = 1.01325 #bar
