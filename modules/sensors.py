@@ -139,7 +139,7 @@ class Imu(object):
 class Gps(object):
 
     def __init__(self, time, fix_type, lat, lon, alt, eph, epv, vel, cog, satellites_visible,
-            latlon_mean=0, latlon_var=0, alt_mean=0, alt_var=0, vel_mean=0, vel_var=0):
+            pos_mean=0, pos_var=0, alt_mean=0, alt_var=0, vel_mean=0, vel_var=0):
 
         self.time = time
         self.fix_type = fix_type
@@ -152,7 +152,7 @@ class Gps(object):
         self.cog = cog
         self.satellites_visible = satellites_visible
 
-        self.latlon_noise = noise.GaussianNoise(latlon_mean, latlon_var)
+        self.pos_noise = noise.GaussianNoise(pos_mean, pos_var)
         self.alt_noise = noise.GaussianNoise(alt_mean, alt_var)
         self.vel_noise = noise.GaussianNoise(vel_mean, vel_var)
 
@@ -167,28 +167,34 @@ class Gps(object):
             print 'mav gps raw int packet data exceeds int bounds'
 
     def from_state(self, state, attack=None):
+
         sog = math.sqrt(state.vN*state.vN + state.vE*state.vE)
         cog = math.atan2(state.vE, state.vN)
+
         if cog < 0: cog += 2*math.pi
 
-        # noise
-        lat = state.lat + self.latlon_noise
-        lon = state.lon + self.latlon_noise
-        alt = state.alt + self.alt_noise
-        sog = sog + self.vel_noise
+	r_earth = 6378100
+	pos_north_error = self.pos_noise + 0	
+	pos_east_error = self.pos_noise + 0	
 
-        self.__init__(time = time.time(), fix_type = 3,
-                   lat = lat, lon = lon, alt = alt,
-                   eph = 1.0, epv = 5.0, vel = sog, cog = cog,
-                   satellites_visible = 10)
+	self.time = time.time()
+        self.fix_type = 3
+        self.lat = state.lat + pos_north_error/r_earth
+        self.lon = state.lon + pos_east_error*cos(state.lat)/r_earth
+        self.alt = state.alt + self.alt_noise
+        self.eph = 1.0
+        self.epv = 5.0
+        self.vel = sog + self.vel_noise
+        self.cog = cog
+        self.satellites_visible = 10
 
     @classmethod
     def default(cls):
         return cls(time.time(),0,0,0,0,0,0,0,0,0,
-                latlon_mean = 0,
-                latlon_var = 0.0001,
+                pos_mean = 0,
+                pos_var = 1,
                 alt_mean = 0,
-                alt_var = 0.1,
+                alt_var = 5,
                 vel_mean = 0,
                 vel_var = 1
                 )
