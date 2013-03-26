@@ -1,5 +1,5 @@
 #!/bin/bash
-aircraft=easystar
+aircraft=c172p
 portFdm=5503
 
 fgfs --fdm=external \
