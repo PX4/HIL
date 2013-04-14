@@ -14,12 +14,10 @@ class BasicAircraft(object):
         self.u = aircraft.Controls.default()
 
         if attack == None:
-            self.pressure = sensors.Pressure.default()
             self.imu = sensors.Imu.default()
             self.gps = sensors.Gps.default()
         else:
             import attack_sensors
-            self.pressure = attack_sensors.AttackPressure.default()
             self.imu = attack_sensors.AttackImu.default()
             self.gps = attack_sensors.AttackGps.default()
 
@@ -30,10 +28,6 @@ class BasicAircraft(object):
         self.gps_period = 1.0/10;
         self.t_gps = t_now
         self.gps_count = 0
-
-        self.pressure_period = 1.0/10;
-        self.t_pressure = t_now
-        self.pressure_count = 0
 
         self.t_out = t_now
 
@@ -87,10 +81,6 @@ class BasicAircraft(object):
         self.gps.from_state(self.x, self.attack)
         self.gps.send_to_mav(mav)
 
-    def send_pressure(self, mav):
-        self.pressure.from_state(self.x, self.attack)
-        self.pressure.send_to_mav(mav)
-
     def send_sensors(self, mav):
         t_now = time.time()
         if t_now - self.t_gps > self.gps_period:
@@ -105,17 +95,10 @@ class BasicAircraft(object):
             self.imu_count += 1
 
         t_now = time.time()
-        if t_now - self.t_pressure > self.pressure_period:
-            self.t_pressure = t_now
-            self.send_pressure(mav)
-            self.pressure_count += 1
-
-        t_now = time.time()
         if t_now - self.t_out > 1:
             self.t_out = t_now
-            print 'imu {0:4d} Hz, gps {1:4d} Hz, pressure {2:4d} Hz\n'.format(
-                self.imu_count, self.gps_count, self.pressure_count)
+            print 'imu {0:4d} Hz, gps {1:4d} Hz\n'.format(
+                self.imu_count, self.gps_count)
             self.gps_count = 0
             self.imu_count = 0
-            self.pressure_count = 0
 

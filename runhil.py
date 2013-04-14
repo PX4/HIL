@@ -263,8 +263,8 @@ class SensorHIL(object):
             #self.jsb_console.close()
 
         # reset autopilot state
-        #self.reboot_autopilot()
-        #time.sleep(8)
+        self.reboot_autopilot()
+        time.sleep(8)
 
 
         self.init_jsbsim()

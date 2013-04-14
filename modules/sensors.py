@@ -10,52 +10,14 @@ from math import sin, cos
 import noise
 from constants import *
 
-# TODO
-class Pressure(object):
-
-    def __init__(self, time, press_abs, press_diff1, press_diff2, temperature, mean=0, var=0):
-        self.time = time
-        self.press_abs = press_abs
-        self.press_diff1 = press_diff1
-        self.press_diff2 = press_diff2
-        self.temperature = temperature
-        self.sensor_noise = noise.GaussianNoise(mean, var)
-
-    def send_to_mav(self, mav):
-        bar2mbar = 1.0e3
-        try:
-            mav.raw_pressure_send(self.time*sec2usec,
-                             self.press_abs*bar2mbar, self.press_diff1*bar2mbar,
-                             self.press_diff2*bar2mbar, self.temperature*100)
-        except struct.error as e:
-            print 'mav raw pressure packet data exceeds int bounds'
-
-    @classmethod
-    def default(cls):
-        return cls(time.time(),0,0,0,0, mean=0, var=0.000001)
-
-    def from_state(self, state, attack=None):
-        ground_press = 1.01325 #bar
-        ground_tempC = 21.0
-        tempC = 21.0  # TODO temp variation
-        tempAvgK = T0 + (tempC + ground_tempC)/2
-        pressBar = ground_press/math.exp(state.alt*(g/R)/tempAvgK)
-
-        self.press_abs = pressBar
-        self.press_diff1 = 0 # TODO, for velocity
-        self.press_diff2 = 0 # TODO, ?
-        self.temperature = tempC
-
-        self.time = time.time()
-
-        # Add noise to measurement
-        self.press_abs += self.sensor_noise
-
-
 class Imu(object):
 
     def __init__(self, time, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag,
-            acc_mean=0, acc_var=0, gyro_mean=0, gyro_var=0, mag_mean=0, mag_var=0):
+            abs_pressure, diff_pressure, pressure_alt, temperature,
+            acc_mean=0, acc_var=0,
+            gyro_mean=0, gyro_var=0,
+            mag_mean=0, mag_var=0,
+            baro_mean=0, baro_var=0):
 
         self.time = time
         self.xacc = xacc
@@ -67,41 +29,52 @@ class Imu(object):
         self.xmag = xmag
         self.ymag = ymag
         self.zmag = zmag
+        self.abs_pressure = abs_pressure
+        self.diff_pressure = diff_pressure
+        self.pressure_alt = pressure_alt
+        self.temperature = temperature
 
         self.acc_noise = noise.GaussianNoise(acc_mean, acc_var)
         self.gyro_noise = noise.GaussianNoise(gyro_mean, gyro_var)
         self.mag_noise = noise.GaussianNoise(mag_mean, mag_var)
+        self.baro_noise = noise.GaussianNoise(baro_mean, baro_var)
 
     def send_to_mav(self, mav):
         try:
-            mav.raw_imu_send(self.time*sec2usec,
-                             self.xacc*mpss2mg, self.yacc*mpss2mg, self.zacc*mpss2mg,
-                             self.xgyro*rad2mrad, self.ygyro*rad2mrad, self.zgyro*rad2mrad,
-                             self.xmag*ga2mga, self.ymag*ga2mga, self.zmag*ga2mga)
+            bar2mbar = 1000.0
+            mav.highres_imu_send(self.time*sec2usec,
+                             self.xacc, self.yacc, self.zacc,
+                             self.xgyro, self.ygyro, self.zgyro,
+                             self.xmag, self.ymag, self.zmag,
+                             self.abs_pressure*bar2mbar, self.diff_pressure*bar2mbar,
+                             self.pressure_alt, self.temperature, 65535)
         except struct.error as e:
             print 'mav raw imu packet data exceeds int bounds'
 
     @classmethod
     def default(cls):
-        return cls(time.time(),0,0,0,0,0,0,0,0,0,
-            acc_mean = 0,
-            acc_var = .01,
-            gyro_mean = 0,
-            gyro_var = .01,
-            mag_mean = 0,
-            mag_var = .01)
+        return cls(time.time(),
+            xacc=0, yacc=0, zacc=0,
+            xgyro=0, ygyro=0, zgyro=0,
+            xmag=0, ymag=0, zmag=0,
+            abs_pressure=0, diff_pressure=0,
+            pressure_alt=0, temperature=0,
+            acc_mean = 0, acc_var = .01,
+            gyro_mean = 0, gyro_var = .01,
+            mag_mean = 0, mag_var = .01,
+            baro_mean = 0, baro_var = 0.0000001)
 
     def from_state(self, state, attack=None):
 
         # accelerometer
-        self.xacc = state.xacc
-        self.yacc = state.yacc
-        self.zacc = state.zacc
+        self.xacc = state.xacc + self.acc_noise
+        self.yacc = state.yacc + self.acc_noise
+        self.zacc = state.zacc + self.acc_noise
     
         # gyroscope
-        self.xgyro = state.p
-        self.ygyro = state.q
-        self.zgyro = state.r
+        self.xgyro = state.p + self.gyro_noise
+        self.ygyro = state.q + self.gyro_noise
+        self.zgyro = state.r + self.gyro_noise
 
         # mag field properties
         # setting to constants, should
@@ -117,24 +90,22 @@ class Imu(object):
         magVectB = numpy.transpose(state.C_nb)*magVectN
 
         # magnetometer
-        self.xmag = magVectB[0,0]
-        self.ymag = magVectB[1,0]
-        self.zmag = magVectB[2,0]
+        self.xmag = magVectB[0,0] + self.mag_noise
+        self.ymag = magVectB[1,0] + self.mag_noise
+        self.zmag = magVectB[2,0] + self.mag_noise
+
+        # baro
+        ground_press = 1.01325 #bar
+        ground_tempC = 21.0
+        tempC = 21.0  # TODO temp variation
+        tempAvgK = T0 + (tempC + ground_tempC)/2
+
+        self.abs_pressure = ground_press/math.exp(state.alt*(g/R)/tempAvgK) + self.baro_noise
+        self.diff_pressure = 0 + self.baro_noise # TODO, for velocity
+        self.temperature = tempC
+        self.pressure_alt = state.alt # TODO compute from pressure
 
         self.time = time.time()
-
-        # Add noise to measurement
-        self.xacc += self.acc_noise
-        self.yacc += self.acc_noise
-        self.zacc += self.acc_noise
-
-        self.xgyro += self.gyro_noise
-        self.ygyro += self.gyro_noise
-        self.zgyro += self.gyro_noise
-
-        self.xmag += self.mag_noise
-        self.ymag += self.mag_noise
-        self.zmag += self.mag_noise
 
 class Gps(object):
 
