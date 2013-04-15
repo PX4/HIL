@@ -24,10 +24,20 @@
     </event>
 
     <event name="Trim">
-      <condition>simulation/sim-time-sec ge 0.01</condition>
-      <set name="simulation/do_simple_trim" value="2"/>
+      <condition>simulation/sim-time-sec ge 5</condition>
+      <set name="simulation/do_simple_trim" value="1"/>
       <notify/>
     </event>
   </run>
+
+    <event name="Repeating Notify" persistent="true">
+      <description>Output message at 5 second intervals</description>
+      <notify>
+        <property>propulsion/engine[0]/thrust-lbs</property>
+        <property>position/h-agl-m</property>
+      </notify>
+      <condition> simulation/sim-time-sec >= simulation/notify-time-trigger </condition>
+      <set name="simulation/notify-time-trigger" value="5" type="FG_DELTA"/>
+    </event>
 
 </runscript>
