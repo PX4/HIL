@@ -5,12 +5,14 @@ import time
 import aircraft
 import sensors
 from math import cos, sin, pi
+from collections import deque
 
 class BasicAircraft(object):
 
     def __init__(self, attack=None):
         t_now = time.time()
         self.x = aircraft.State.default()
+        self.x_delay = deque([self.x],maxlen=10000)
         self.u = aircraft.Controls.default()
 
         if attack == None:
@@ -38,6 +40,7 @@ class BasicAircraft(object):
 
     def update_state(self, fdm):
         self.x = aircraft.State.from_fdm(fdm)
+        self.x_delay.append(self.x)
 
     def update_state_test(self, sog, cog):
         t = time.time()
@@ -59,6 +62,7 @@ class BasicAircraft(object):
             p=0, q=0, r=0,
             lat=lat, lon=lon, alt=alt,
             vN=vN, vE=vE, vD=vD, xacc=0, yacc=0, zacc=-9.806)
+        self.x_delay.append(self.x)
         #print 'latDot:', latDot, 'lonDot:', lonDot
         #print 'vN:', vN, 'vE:', vE, 'vD:', vD
         #print 'lat:', lat, 'lon:', lon, 'alt:', alt,
@@ -77,8 +81,27 @@ class BasicAircraft(object):
         self.imu.from_state(self.x, self.attack)
         self.imu.send_to_mav(mav)
 
+    def append_delayed_state(self):
+        self.x_delay.append(self.x)
+
+    def get_delayed_state(self, dt=1.0):
+        tLast = self.x_delay[-1].time
+        i = len(self.x_delay)
+        while True:
+            i = i - 1
+            if i < 0:
+                state = self.x_delay[0]
+                break
+            if tLast - self.x_delay[i].time > dt:
+                state = self.x_delay[i]
+                break
+        #print 'delayed by:', tLast - state.time
+        return state
+
     def send_gps(self, mav):
-        self.gps.from_state(self.x, self.attack)
+        self.gps.from_state(
+            self.get_delayed_state(1.0),
+            self.attack)
         self.gps.send_to_mav(mav)
 
     def send_sensors(self, mav):
@@ -101,4 +124,3 @@ class BasicAircraft(object):
                 self.imu_count, self.gps_count)
             self.gps_count = 0
             self.imu_count = 0
-
