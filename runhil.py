@@ -307,7 +307,11 @@ class SensorHIL(object):
         if len(buf) == 408:
             self.fdm.parse(buf)
             self.ac.update_state(self.fdm)
-			#self.ac.update_state_test(20, 270*math.pi/180)
+            #self.ac.update_state_test(20, 270*math.pi/180)
+
+            # TODO should send fdm global pos data to gcs here
+            #m = mavutil.mavlink.MAVLink_heartbeat_message(0,0,0,0,0,0)
+            #self.gcs.write(m.get_msgbuf())
 
             if self.fg_enable:
                 try:
@@ -445,3 +449,5 @@ class SensorHIL(object):
 
 if __name__ == "__main__":
     SensorHIL.command_line()
+
+# vim:ts=4:sw=4:expandtab
