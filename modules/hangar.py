@@ -68,22 +68,6 @@ class BasicAircraft(object):
         #print 'lat:', lat, 'lon:', lon, 'alt:', alt,
         #print 'phi:', phi, 'theta:', theta, 'psi:', psi
 
-    def update_controls(self, m):
-        self.u = aircraft.Controls.from_mavlink(m)
-
-    def send_controls(self, jsb_console):
-        self.u.send_to_jsbsim(jsb_console)
-
-    def send_state(self, mav):
-        self.x.send_to_mav(mav)
-
-    def send_imu(self, mav):
-        self.imu.from_state(self.x, self.attack)
-        self.imu.send_to_mav(mav)
-
-    def append_delayed_state(self):
-        self.x_delay.append(self.x)
-
     def get_delayed_state(self, dt=1.0):
         tLast = self.x_delay[-1].time
         i = len(self.x_delay)
@@ -97,6 +81,19 @@ class BasicAircraft(object):
                 break
         #print 'delayed by:', tLast - state.time
         return state
+
+    def update_controls(self, m):
+        self.u = aircraft.Controls.from_mavlink(m)
+
+    def send_controls(self, jsb_console):
+        self.u.send_to_jsbsim(jsb_console)
+
+    def send_state(self, mav):
+        self.x.send_to_mav(mav)
+
+    def send_imu(self, mav):
+        self.imu.from_state(self.x, self.attack)
+        self.imu.send_to_mav(mav)
 
     def send_gps(self, mav):
         self.gps.from_state(
