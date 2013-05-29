@@ -10,9 +10,9 @@ import pexpect, socket, fdpexpect, select
 import pymavlink.mavutil as mavutil
 
 if os.getenv('MAVLINK09') or 'MAVLINK09' in os.environ:
-    import pymavlink.mavlinkv09_pixhawk as mavlink
+    import pymavlink.v09.pixhawk as mavlink
 else:
-    import pymavlink.mavlinkv10_pixhawk as mavlink
+    import pymavlink.v10.pixhawk as mavlink
 
 # set path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'modules'))
