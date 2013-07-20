@@ -9,10 +9,7 @@ import sys, struct, time, os, argparse, signal, math, errno
 import pexpect, socket, fdpexpect, select
 import pymavlink.mavutil as mavutil
 
-if os.getenv('MAVLINK09') or 'MAVLINK09' in os.environ:
-    import pymavlink.v09.pixhawk as mavlink
-else:
-    import pymavlink.v10.pixhawk as mavlink
+from pymavlink.dialects.v10 import pixhawk as mavlink
 
 # set path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.realpath(__file__)), 'modules'))
@@ -296,7 +293,7 @@ class SensorHIL(object):
             self.update()
 
         self.set_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED, True)
-        self.set_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED, True)
+        #self.set_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED, True)
 
         # resume simulation
         return time.time()
