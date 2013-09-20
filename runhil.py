@@ -5,7 +5,7 @@ runs hil simulation
 '''
 
 # system import
-import sys, struct, time, os, argparse, signal, math, errno
+import sys, struct, time, os, argparse, signal, math, errno, psutil
 import pexpect, socket, fdpexpect, select
 import pymavlink.mavutil as mavutil
 
@@ -73,6 +73,10 @@ class SensorHIL(object):
         self.frame_count = 0
         self.last_report = 0
         self.jsbsim_bad_packet = 0
+
+        for proc in psutil.process_iter():
+            if proc.name == "JSBSim":
+                proc.kill()
 
         #self.init_jsbsim()
         self.init_mavlink(master_dev, gcs_dev, baudrate)
@@ -260,8 +264,8 @@ class SensorHIL(object):
             #self.jsb_console.close()
 
         # reset autopilot state
-        self.reboot_autopilot()
-        time.sleep(8)
+        #self.reboot_autopilot()
+        #time.sleep(8)
 
 
         self.init_jsbsim()
@@ -292,7 +296,7 @@ class SensorHIL(object):
         while time.time() - time_start < 5:
             self.update()
 
-        self.set_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED, True)
+        #self.set_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED, True)
         #self.set_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED, True)
 
         # resume simulation
@@ -328,6 +332,10 @@ class SensorHIL(object):
         return tuple(a)
 
     def process_master(self):
+
+        # send waypoint messages to mav
+        self.wpm.send_messages()
+
         m = self.master.recv_msg()
         if m == None: return
 
@@ -351,9 +359,6 @@ class SensorHIL(object):
 
         # handle waypoint messages
         self.wpm.process_msg(m)
-
-        # send waypoint messages to mav
-        self.wpm.send_messages()
 
     def process_gcs(self):
         '''process packets from MAVLink slaves, forwarding to the master'''
