@@ -42,14 +42,17 @@ class Imu(object):
     def send_to_mav(self, mav):
         try:
             bar2mbar = 1000.0
-            mav.highres_imu_send(self.time*sec2usec,
-                             self.xacc, self.yacc, self.zacc,
-                             self.xgyro, self.ygyro, self.zgyro,
-                             self.xmag, self.ymag, self.zmag,
-                             self.abs_pressure*bar2mbar, self.diff_pressure*bar2mbar,
-                             self.pressure_alt, self.temperature, 65535)
-        except struct.error as e:
-            print 'mav raw imu packet data exceeds int bounds'
+            # see pymavlink definitino of hil_sensor_send(), and struct.pack()
+            mav.hil_sensor_send(int(self.time*sec2usec),
+                                self.xacc, self.yacc, self.zacc,
+                                self.xgyro, self.ygyro, self.zgyro,
+                                self.xmag, self.ymag, self.zmag,
+                                self.abs_pressure*bar2mbar,
+                                self.diff_pressure*bar2mbar,
+                                self.pressure_alt,
+                                self.temperature, int(65535))
+        except struct.error:
+            print 'mav hil sensor packet data exceeds int bounds'
 
     @classmethod
     def default(cls):
@@ -122,6 +125,9 @@ class Gps(object):
         self.vel = vel
         self.cog = cog
         self.satellites_visible = satellites_visible
+        self.vn = 0
+        self.ve = 0
+        self.vd = 0
 
         self.pos_noise = noise.GaussianNoise(pos_mean, pos_var)
         self.alt_noise = noise.GaussianNoise(alt_mean, alt_var)
@@ -129,16 +135,25 @@ class Gps(object):
 
     def send_to_mav(self, mav):
         try:
-            mav.gps_raw_int_send(self.time*sec2usec,
-                             self.fix_type,
-                             self.lat*rad2degE7, self.lon*rad2degE7, self.alt*m2mm,
-                             self.eph*m2cm, self.epv*m2cm, self.vel*m2cm, self.cog*100*rad2deg,
-                             self.satellites_visible)
-        except struct.error as e:
-            print 'mav gps raw int packet data exceeds int bounds'
+            #see pymavlink hil_gps_send() definition and struct.pack()
+            # for encoding information.
+            mav.hil_gps_send(int(self.time*sec2usec),
+                             int(self.fix_type),
+                             int(self.lat*rad2degE7), int(self.lon*rad2degE7),
+                             int(self.eph*m2cm), int(self.epv*m2cm),
+                             int(self.vel*m2cm),
+                             int(self.vel*m2cm),
+                             int(self.vn), int(self.ve), int(self.vd),
+                             int(self.cog*rad2deg),
+                             int(self.satellites_visible))
+        except struct.error:
+            print 'mav hil gps packet data exceeds int bounds'
 
     def from_state(self, state, attack=None):
 
+        self.vn = state.vN
+        self.ve = state.vE
+        self.vd = state.vD
         sog = math.sqrt(state.vN*state.vN + state.vE*state.vE)
         cog = math.atan2(state.vE, state.vN)
 

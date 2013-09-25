@@ -172,6 +172,29 @@ class SensorHIL(object):
             time.sleep(0.1)
             if time.time()  - t_start > 5: raise IOError('Failed to set mode flag, check port')
 
+    def go_autonomous(self):
+        t_start = time.time()
+        if (self.get_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED) and
+           self.get_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
+            return
+        while ((not
+               self.get_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED))
+               and (not
+               self.get_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED))):
+            self.master.mav.command_long_send(self.master.target_system,
+                                self.master.target_component,
+                                mavlink.MAV_CMD_DO_SET_MODE, 4,
+                                mavlink.MAV_MODE_FLAG_AUTO_ENABLED |
+                                mavlink.MAV_MODE_FLAG_SAFETY_ARMED |
+                                mavlink.MAV_MODE_FLAG_HIL_ENABLED,
+                                0, 0, 0, 0, 0, 0)
+            while self.master.port.inWaiting() > 0:
+                m = self.master.recv_msg()
+            time.sleep(0.1)
+            if time.time()  - t_start > 5: raise IOError('Failed to\
+                    transition to auto mode, check port and firmware')
+
+
     def wait_for_no_msg(self, msg, period, timeout, callback=None):
         done = False
         t_start = time.time()
@@ -290,15 +313,19 @@ class SensorHIL(object):
         self.jsb_console.send('resume\n')
         self.process_jsb_input()
         self.ac.send_state(self.master.mav)
-        # send initial data
+        # send initial data for estimators to work and system to be able to
+        # switch to autonomous mode
         print 'sending sensor data'
         time_start = time.time()
         while time.time() - time_start < 5:
             self.update()
+        # It might seem like a good idea to wait for a little bit here becuase
+        # the first call or two to go_autonomous() is temporarily rejected.
+        # DON'T DO IT. You will get really unstable behavior and have no
+        # idea why.
 
-        #self.set_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED, True)
-        #self.set_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED, True)
-
+        # arm and enter autonomous mode
+        self.go_autonomous()
         # resume simulation
         return time.time()
 
