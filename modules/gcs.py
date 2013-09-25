@@ -44,6 +44,8 @@ class WaypointManager(object):
             if (time.time() - self.send_time) > 1:
                 self.send_time = time.time()
                 self.mavfile.waypoint_clear_all_send()
+                self.mavfile.waypoint_clear_all_send()
+                self.mavfile.waypoint_count_send(self.count)
                 self.mavfile.waypoint_count_send(self.count)
                 print "Sent waypoint count of %u" % self.count
 
@@ -52,6 +54,7 @@ class WaypointManager(object):
             if (time.time() - self.send_time) > 0.3:
                 self.send_time = time.time()
                 wp = self.loader.wp(self.index)
+                self.mavfile.mav.send(wp)
                 self.mavfile.mav.send(wp)
                 print "Sent waypoint %u" % (self.index)
 

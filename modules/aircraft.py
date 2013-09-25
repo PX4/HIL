@@ -5,7 +5,7 @@ classes for aircraft model
 '''
 
 import time, struct, numpy
-from math import sin, cos
+from math import sin, cos, sqrt
 
 from constants import *
 
@@ -92,6 +92,12 @@ class State(object):
             [-sinThe,
             sinPhi*cosThe,
             cosPhi*cosThe]])
+        self.quat = numpy.matrix([
+            [cos(phi/2)*cos(theta/2)*cos(psi/2)+sin(phi/2)*sin(theta/2)*sin(psi/2)],
+            [sin(phi/2)*cos(theta/2)*cos(psi/2)-cos(phi/2)*sin(theta/2)*sin(psi/2)],
+            [cos(phi/2)*sin(theta/2)*cos(psi/2)+sin(phi/2)*cos(theta/2)*sin(psi/2)],
+            [cos(phi/2)*cos(theta/2)*sin(psi/2)-sin(phi/2)*sin(theta/2)*cos(psi/2)]
+        ])
 
     @classmethod
     def default(cls):
@@ -99,14 +105,18 @@ class State(object):
 
     def send_to_mav(self, mav):
         try:
-            mav.hil_state_send(
-                self.time*sec2usec, self.phi, self.theta, self.psi,
+            v = sqrt(self.vN**2 + self.vE**2 + self.vD**2)
+            mav.hil_state_quaternion_send(
+                self.time*sec2usec, self.quat,
                 self.p, self.q, self.r,
                 int(self.lat*rad2degE7), int(self.lon*rad2degE7), int(self.alt*m2mm),
                 int(self.vN*m2cm), int(self.vE*m2cm), int(self.vD*m2cm),
+                int(v*m2cm), int(v*m2cm),
                 int(self.xacc*mpss2mg), int(self.yacc*mpss2mg), int(self.zacc*mpss2mg))
         except struct.error as e:
-            print 'mav hil packet data exceeds int bounds'
+            print e
+            print 'mav hil packet data exceeds int bounds?'
+
 
     @classmethod
     def from_fdm(cls, fdm):
