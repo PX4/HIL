@@ -1,20 +1,96 @@
 #!nsh
+set mode custom 
+
+# 
+# Start terminal 
+# 
+if sercon 
+then 
+echo "USB connected" 
+fi 
+# 
+# Start the ORB (first app to start) 
+# 
+uorb start 
+# 
+# Load microSD params 
+# 
+if ramtron start 
+then 
+param select /ramtron/params 
+if [ -f /ramtron/params ] 
+then 
+param load /ramtron/params 
+fi 
+else 
+param select /fs/microsd/params 
+if [ -f /fs/microsd/params ] 
+then 
+param load /fs/microsd/params 
+fi 
+fi 
 
 #
-# Init the EEPROM
+# USB HIL start
 #
-echo "[init] eeprom"
-eeprom start
-if [ -f /eeprom/parameters ]
+
+
+
+echo "[HIL] starting.."
+
+# Tell MAVLink that this link is "fast"
+sleep 2
+mavlink start -b 921600 -d /dev/ttyS1
+
+# Create a fake HIL /dev/pwm_output interface
+hil mode_pwm
+
+#
+# Force some key parameters to sane values
+# MAV_TYPE     1 = fixed wing, 2 = quadrotor, 13 = hexarotor
+#              see https://pixhawk.ethz.ch/mavlink/
+#
+param set MAV_TYPE 1
+
+#
+# Start the commander (depends on orb, mavlink)
+#
+commander start
+
+
+#
+# Check if we got an IO
+#
+if px4io start
 then
-	param load
+	echo "IO started"
+else
+	fmu mode_serial
+	echo "FMU started"
 fi
 
-uorb start
+#
+# Start the sensors (depends on orb, px4io)
+# disable for HIL to save time
+#
+#sh /etc/init.d/rc.sensors
 
-mavlink start -d /dev/ttyS1 -b 921600
-hil mode_port2_pwm8
-mixer load /dev/pwm_output /etc/mixers/FMU_AERT.mix
-kalman_demo start
-control_demo start
-commander start
+#
+# Start the attitude estimator (depends on orb)
+# disable for state mode HIL
+#
+att_pos_estimator_ekf start
+ 
+#
+# Load mixer and start controllers (depends on px4io)
+#
+mixer load /dev/pwm_output /etc/mixers/FMU_AET.mix
+
+#use either the following pos/att controllers, or the backside controller.
+fw_pos_control_l1 start
+fw_att_control start
+
+#use either the pos/att controllers directly above, or the backside (below)
+#fixedwing_backside start
+
+echo "[HIL] setup done, running"
