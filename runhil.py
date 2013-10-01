@@ -239,8 +239,6 @@ class SensorHIL(object):
         while not reboot_successful:
 
             # Request reboot until no heartbeat received
-                # do while loop that checks the wait for no message timeout
-                # and resends the reboot if not successfull.
                 # The callback option cannot be used for this, because it
                 # runs at the same speed as the message receive which is
                 # unecessary.
@@ -249,26 +247,17 @@ class SensorHIL(object):
                 self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
                 print 'Sending reboot to autopilot'
                 self.master.reboot_autopilot()
-
-                shutdown = True;
-
-                # XXX This is only safe if USB is connected, just skip it
                 # wait for heartbeat timeout, continue looping if not received
-                #shutdown = self.wait_for_no_msg(msg='HEARTBEAT', period=2, timeout=10)
-                print shutdown
-
+                shutdown = self.wait_for_no_msg(msg='HEARTBEAT', period=2, timeout=10)
             print 'Autopilot heartbeat lost (rebooting)'
-
             # Try to read heartbeat three times before restarting shutdown
             for i in range(3):
-
                 print 'Attempt %d to read autopilot heartbeat.' % (i+1)
                 # Reset serial comm
                 self.master.reset()
-
                 reboot_successful = self.wait_for_msg('HEARTBEAT', timeout=100)
                 if reboot_successful:
-                    # avoid sending data immediately as this causes boot problem on px4
+                    #delay sending data to avoid boot problem on px4
                     time.sleep(1)
                     self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
                     break
@@ -287,7 +276,7 @@ class SensorHIL(object):
             #self.jsb_console.close()
 
         # reset autopilot state
-        #self.reboot_autopilot()
+        self.reboot_autopilot()
         #time.sleep(8)
 
 
