@@ -140,11 +140,11 @@ class Gps(object):
             mav.hil_gps_send(int(self.time*sec2usec),
                              int(self.fix_type),
                              int(self.lat*rad2degE7), int(self.lon*rad2degE7),
+                             int(self.alt*m2mm),
                              int(self.eph*m2cm), int(self.epv*m2cm),
                              int(self.vel*m2cm),
-                             int(self.vel*m2cm),
                              int(self.vn), int(self.ve), int(self.vd),
-                             int(self.cog*rad2deg),
+                             int(self.cog*rad2deg*100),
                              int(self.satellites_visible))
         except struct.error:
             print 'mav hil gps packet data exceeds int bounds'
@@ -173,7 +173,7 @@ class Gps(object):
         self.vel = sog + self.vel_noise
         self.cog = cog
         self.satellites_visible = 10
-
+ 
     @classmethod
     def default(cls):
         return cls(time.time(),0,0,0,0,0,0,0,0,0,
