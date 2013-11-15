@@ -3,3 +3,4 @@
 *.pkl
 *.pyc
 .DS_Store
+*~

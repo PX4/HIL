@@ -177,9 +177,9 @@ class SensorHIL(object):
         if (self.get_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED) and
            self.get_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
             return
-        while ((not
-               self.get_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED))
-               and (not
+        while (not
+               (self.get_mode_flag(mavlink.MAV_MODE_FLAG_AUTO_ENABLED)
+               and 
                self.get_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED))):
             self.master.mav.command_long_send(self.master.target_system,
                                 self.master.target_component,
@@ -191,8 +191,30 @@ class SensorHIL(object):
             while self.master.port.inWaiting() > 0:
                 m = self.master.recv_msg()
             time.sleep(0.1)
-            if time.time()  - t_start > 5: raise IOError('Failed to\
-                    transition to auto mode, check port and firmware')
+            if time.time()  - t_start > 5: raise IOError('Failed to '\
+                    + 'transition to auto mode, check port and firmware')
+                    
+    
+    def set_hil_and_arm(self):
+        t_start = time.time()
+        if (self.get_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED) and
+           self.get_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED)):
+            return
+        while (not
+               (self.get_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED)
+               and 
+               self.get_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED))):
+            self.master.mav.command_long_send(self.master.target_system,
+                                self.master.target_component,
+                                mavlink.MAV_CMD_DO_SET_MODE, 4,
+                                mavlink.MAV_MODE_FLAG_SAFETY_ARMED |
+                                mavlink.MAV_MODE_FLAG_HIL_ENABLED,
+                                0, 0, 0, 0, 0, 0)
+            while self.master.port.inWaiting() > 0:
+                m = self.master.recv_msg()
+            time.sleep(0.1)
+            if time.time()  - t_start > 5: raise IOError('Failed to '\
+                    + 'transition to HIL mode and arm, check port and firmware')
 
 
     def wait_for_no_msg(self, msg, period, timeout, callback=None):
@@ -244,7 +266,8 @@ class SensorHIL(object):
                 # unecessary.
             shutdown = False
             while not shutdown:
-                self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
+                self.set_hil_and_arm()
+                #self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
                 print 'Sending reboot to autopilot'
                 self.master.reboot_autopilot()
                 # wait for heartbeat timeout, continue looping if not received
@@ -259,7 +282,8 @@ class SensorHIL(object):
                 if reboot_successful:
                     #delay sending data to avoid boot problem on px4
                     time.sleep(1)
-                    self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
+                    self.set_hil_and_arm()
+                    #self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
                     break
 
     def jsb_set(self, variable, value):
@@ -297,8 +321,9 @@ class SensorHIL(object):
         while self.wpm.state != 'IDLE':
             self.process_master()
 
-        self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
-
+        #self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
+        #self.set_mode_flag(mavlink.MAV_MODE_FLAG_SAFETY_ARMED, True)
+        
         self.jsb_console.send('resume\n')
         self.process_jsb_input()
         self.ac.send_state(self.master.mav)
@@ -306,7 +331,8 @@ class SensorHIL(object):
         # switch to autonomous mode
         print 'sending sensor data'
         time_start = time.time()
-        while time.time() - time_start < 5:
+        #while time.time() - time_start < 5:
+        while time.time() - time_start < 4:
             self.update()
         # It might seem like a good idea to wait for a little bit here becuase
         # the first call or two to go_autonomous() is temporarily rejected.
@@ -314,6 +340,7 @@ class SensorHIL(object):
         # idea why.
 
         # arm and enter autonomous mode
+        self.set_hil_and_arm()
         self.go_autonomous()
         # resume simulation
         return time.time()
