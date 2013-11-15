@@ -10,6 +10,15 @@ from math import sin, cos
 import noise
 from constants import *
 
+
+def toint(num):
+    if num < 0:
+        return 0
+    elif num > 65535:
+	return 65535
+    else:
+	return int(num)
+
 class Imu(object):
 
     def __init__(self, time, xacc, yacc, zacc, xgyro, ygyro, zgyro, xmag, ymag, zmag,
@@ -19,30 +28,34 @@ class Imu(object):
             mag_mean=0, mag_var=0,
             baro_mean=0, baro_var=0):
 
-        self.time = time
-        self.xacc = xacc
-        self.yacc = yacc
-        self.zacc = zacc
-        self.xgyro = xgyro
-        self.ygyro = ygyro
-        self.zgyro = zgyro
-        self.xmag = xmag
-        self.ymag = ymag
-        self.zmag = zmag
-        self.abs_pressure = abs_pressure
-        self.diff_pressure = diff_pressure
-        self.pressure_alt = pressure_alt
-        self.temperature = temperature
-
-        self.acc_noise = noise.GaussianNoise(acc_mean, acc_var)
-        self.gyro_noise = noise.GaussianNoise(gyro_mean, gyro_var)
-        self.mag_noise = noise.GaussianNoise(mag_mean, mag_var)
-        self.baro_noise = noise.GaussianNoise(baro_mean, baro_var)
+		self.time = time
+		self.xacc = xacc
+		self.yacc = yacc
+		self.zacc = zacc
+		self.xgyro = xgyro
+		self.ygyro = ygyro
+		self.zgyro = zgyro
+		self.xmag = xmag
+		self.ymag = ymag
+		self.zmag = zmag
+		self.abs_pressure = abs_pressure
+		self.diff_pressure = diff_pressure
+		self.pressure_alt = pressure_alt
+		self.temperature = temperature
+		#TODO restore noise after testing
+		self.acc_noise = noise.GaussianNoise(acc_mean, acc_var)
+		self.gyro_noise = noise.GaussianNoise(gyro_mean, gyro_var)
+		self.mag_noise = noise.GaussianNoise(mag_mean, mag_var)
+		self.baro_noise = noise.GaussianNoise(baro_mean, baro_var)
+		#self.acc_noise = noise.GaussianNoise(0,0)
+		#self.gyro_noise = noise.GaussianNoise(0,0)
+		#self.mag_noise = noise.GaussianNoise(0,0)
+		#self.baro_noise = noise.GaussianNoise(0,0)
 
     def send_to_mav(self, mav):
         try:
             bar2mbar = 1000.0
-            # see pymavlink definitino of hil_sensor_send(), and struct.pack()
+            # see pymavlink definition of hil_sensor_send(), and struct.pack()
             mav.hil_sensor_send(int(self.time*sec2usec),
                                 self.xacc, self.yacc, self.zacc,
                                 self.xgyro, self.ygyro, self.zgyro,
@@ -138,15 +151,16 @@ class Gps(object):
             #see pymavlink hil_gps_send() definition and struct.pack()
             # for encoding information.
             mav.hil_gps_send(int(self.time*sec2usec),
-                             int(self.fix_type),
+                             toint(self.fix_type),
                              int(self.lat*rad2degE7), int(self.lon*rad2degE7),
                              int(self.alt*m2mm),
-                             int(self.eph*m2cm), int(self.epv*m2cm),
-                             int(self.vel*m2cm),
+                             toint(self.eph*m2cm), toint(self.epv*m2cm),
+                             toint(self.vel*m2cm),
                              int(self.vn), int(self.ve), int(self.vd),
-                             int(self.cog*rad2deg*100),
-                             int(self.satellites_visible))
-        except struct.error:
+                             toint(self.cog*rad2deg*100),
+                             toint(self.satellites_visible))
+        except struct.error as e:
+	    raise e
             print 'mav hil gps packet data exceeds int bounds'
 
     def from_state(self, state, attack=None):
@@ -173,7 +187,7 @@ class Gps(object):
         self.vel = sog + self.vel_noise
         self.cog = cog
         self.satellites_visible = 10
- 
+
     @classmethod
     def default(cls):
         return cls(time.time(),0,0,0,0,0,0,0,0,0,
