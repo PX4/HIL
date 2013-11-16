@@ -117,7 +117,7 @@ class Imu(object):
         tempAvgK = T0 + (tempC + ground_tempC)/2
 
         self.abs_pressure = ground_press/math.exp(state.alt*(g/R)/tempAvgK) + self.baro_noise
-        self.diff_pressure = 0 + self.baro_noise # TODO, for velocity
+        self.diff_pressure =  (0.5*(1.225)*((state.vN)**2 +(state.vE)**2 + (state.vD)**2))*0.00001 + self.baro_noise # TODO, for velocity
         self.temperature = tempC
         self.pressure_alt = state.alt # TODO compute from pressure
 
