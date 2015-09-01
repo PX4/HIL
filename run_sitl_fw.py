@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import pymavlink.mavutil as mavutil
-import pexpect, sys, os, socket, fdpexpect, select, argparse
+import pexpect, sys, os, socket, fdpexpect, select, argparse, psutil
 
 import pymavlink.fgFDM as fgFDM
 
@@ -13,13 +13,13 @@ class Simulator():
     def command_line(cls):
         ''' command line parser '''
         parser = argparse.ArgumentParser()
-        parser.add_argument('--sitl_address', help='address used for UDP communication with flight stack', default='127.0.0.1:14560')
-        parser.add_argument('--script', help='jsbsim script', default='data/easystar_test.xml')
+        parser.add_argument('--master', help='address used for UDP communication with PX4, e.g. 127.0.0.1:14560', default='127.0.0.1:14560')
+        parser.add_argument('--script', help='relative path to jsbsim script', default='data/easystar_test.xml')
         parser.add_argument('--options', help='jsbsim options', default=None)
-        parser.add_argument('--fgout', help="flight gear output", default=None)
+        parser.add_argument('--fgout', help='address used for UDP communication with flightgear, e.g. 127.0.0.1:5503', default=None)
         args = parser.parse_args()
         
-        inst = cls(sitl_address=args.sitl_address, fgout=args.fgout, script=args.script, options=args.options)
+        inst = cls(sitl_address=args.master, fgout=args.fgout, script=args.script, options=args.options)
         inst.run()
 
     def __init__(self, sitl_address, fgout, script, options):
@@ -39,6 +39,10 @@ class Simulator():
         self.jsb_out = None
         self.fg_out = None
 
+        for proc in psutil.process_iter():
+            if proc.name == "JSBSim":
+                proc.kill()
+
     def run(self):
         # send something to simulator to get it running
         self.sitl = mavutil.mavudp(self.sitl_address, input=False)
@@ -47,6 +51,7 @@ class Simulator():
         #setup output to flightgear
 
         if self.fg_address is not None:
+            fg_address = (self.fg_address.split(':')[0], int(self.fg_address.split(':')[1]))
             self.fg_out = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.fg_out.connect(fg_address)
 
