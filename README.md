@@ -20,7 +20,7 @@ sudo apt-get install python-stdeb
 pypi-install pymavlink
 ```
 
-If you are using mac/ other unix systems:
+If you are using Mac OS / other unix systems:
 
 ```
 sudo easy_install pymavlink
@@ -29,6 +29,10 @@ sudo easy_install pymavlink
 ### JSBSim
 
 JSBSim is the C++ flight dynamics model. It can be built with cmake/ or autotools.
+
+```
+brew install autoconf automake
+```
 
 ```
 git clone https://github.com/PX4/jsbsim.git jsbsim
