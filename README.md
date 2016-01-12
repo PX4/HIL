@@ -31,7 +31,7 @@ sudo easy_install pymavlink
 JSBSim is the C++ flight dynamics model. It can be built with cmake/ or autotools.
 
 ```
-git clone git://git.code.sf.net/p/jsbsim/code jsbsim
+git clone https://github.com/PX4/jsbsim.git jsbsim
 cd jsbsim
 ./autogen.sh
 make
