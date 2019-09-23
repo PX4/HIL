@@ -3,6 +3,7 @@
 '''
 runs hil simulation
 '''
+from __future__ import print_function
 
 # system import
 import sys, struct, time, os, argparse, signal, math, errno, psutil
@@ -91,7 +92,7 @@ class SensorHIL(object):
 
 
     def __del__(self):
-        print 'SensorHil shutting down'
+        print('SensorHil shutting down')
         # JSBSim really doesn't like to die ...
         if self.jsb_console is not None:
             self.jsb_console.send('quit\n')
@@ -104,12 +105,12 @@ class SensorHIL(object):
 
         # master
         master = mavutil.mavserial(master_dev, baud=baudrate, autoreconnect=True)
-        print 'master connected on device: ', master_dev
+        print('master connected on device: ', master_dev)
 
         # gcs
         if gcs_dev is not None:
             gcs = mavutil.mavudp(gcs_dev, input=False)
-            print 'gcs connected on device: ', gcs_dev
+            print('gcs connected on device: ', gcs_dev)
 
         # class data
         self.master = master
@@ -268,14 +269,14 @@ class SensorHIL(object):
             while not shutdown:
                 self.set_hil_and_arm()
                 #self.set_mode_flag(mavlink.MAV_MODE_FLAG_HIL_ENABLED, True)
-                print 'Sending reboot to autopilot'
+                print('Sending reboot to autopilot')
                 self.master.reboot_autopilot()
                 # wait for heartbeat timeout, continue looping if not received
                 shutdown = self.wait_for_no_msg(msg='HEARTBEAT', period=2, timeout=10)
-            print 'Autopilot heartbeat lost (rebooting)'
+            print('Autopilot heartbeat lost (rebooting)')
             # Try to read heartbeat three times before restarting shutdown
             for i in range(3):
-                print 'Attempt %d to read autopilot heartbeat.' % (i+1)
+                print('Attempt %d to read autopilot heartbeat.' % (i+1))
                 # Reset serial comm
                 self.master.reset()
                 reboot_successful = self.wait_for_msg('HEARTBEAT', timeout=100)
@@ -293,7 +294,7 @@ class SensorHIL(object):
     def reset_sim(self):
 
         if self.jsb is not None:
-            print 'quitting jsbsim'
+            print('quitting jsbsim')
             self.jsb.close(force=True)
             self.jsb_out.close()
             self.jsb_in.close()
@@ -313,7 +314,7 @@ class SensorHIL(object):
         self.jsb.expect("\(Trim\) executed")
         self.jsb_console.send('hold\n')
 
-        print 'load waypoints'
+        print('load waypoints')
         if not self.waypoints is None:
             self.wpm.set_waypoints(self.waypoints)
             self.wpm.send_waypoints()
@@ -329,7 +330,7 @@ class SensorHIL(object):
         self.ac.send_state(self.master.mav)
         # send initial data for estimators to work and system to be able to
         # switch to autonomous mode
-        print 'sending sensor data'
+        print('sending sensor data')
         time_start = time.time()
         #while time.time() - time_start < 5:
         while time.time() - time_start < 4:
@@ -365,7 +366,7 @@ class SensorHIL(object):
                         raise
         else:
             self.jsbsim_bad_packet  += 1
-            print 'jsbsim bad packets: ', self.jsbsim_bad_packet
+            print('jsbsim bad packets: ', self.jsbsim_bad_packet)
 
     @staticmethod
     def interpret_address(addrstr):
@@ -398,7 +399,7 @@ class SensorHIL(object):
             self.ac.send_controls(self.jsb_console)
 
         elif mtype == 'STATUSTEXT':
-            print 'sys %d: %s' % (self.master.target_system, m.text)
+            print('sys %d: %s' % (self.master.target_system, m.text))
 
         # handle waypoint messages
         self.wpm.process_msg(m)
@@ -414,7 +415,7 @@ class SensorHIL(object):
                 self.gcs.auto_mavlink_version(buf)
             msgs = self.gcs.mav.parse_buffer(buf)
         except mavutil.mavlink.MAVError as e:
-            print "Bad MAVLink gcs message from %s: %s" % (slave.address, e.message)
+            print("Bad MAVLink gcs message from %s: %s" % (slave.address, e.message))
             return
         if msgs is None:
             return
@@ -464,15 +465,15 @@ class SensorHIL(object):
 
         dt_report = time.time() - self.last_report
         if dt_report > 5:
-            print '\nmode: {0:X}, JSBSim {1:5.0f} Hz, {2:d} sent, {3:d} received, {4:d} errors, bwin={5:.1f} kB/s, bwout={6:.1f} kB/s'.format(
+            print('\nmode: {0:X}, JSBSim {1:5.0f} Hz, {2:d} sent, {3:d} received, {4:d} errors, bwin={5:.1f} kB/s, bwout={6:.1f} kB/s'.format(
                 self.master.base_mode,
                 self.frame_count/dt_report,
                 self.master.mav.total_packets_sent,
                 self.master.mav.total_packets_received,
                 self.master.mav.total_receive_errors,
                 0.001*(self.master.mav.total_bytes_received-self.bytes_recv)/dt_report,
-                0.001*(self.master.mav.total_bytes_sent-self.bytes_sent)/dt_report)
-            print self.counts
+                0.001*(self.master.mav.total_bytes_sent-self.bytes_sent)/dt_report))
+            print(self.counts)
             self.bytes_sent = self.master.mav.total_bytes_sent
             self.bytes_recv = self.master.mav.total_bytes_received
             self.frame_count = 0

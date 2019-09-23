@@ -3,6 +3,7 @@
 '''
 classes for aircraft model
 '''
+from __future__ import print_function
 
 import time, struct, numpy
 from math import sin, cos, sqrt
@@ -114,8 +115,8 @@ class State(object):
                 int(v*m2cm), int(v*m2cm),
                 int(self.xacc*mpss2mg), int(self.yacc*mpss2mg), int(self.zacc*mpss2mg))
         except struct.error as e:
-            print e
-            print 'mav hil packet data exceeds int bounds?'
+            print(e)
+            print('mav hil packet data exceeds int bounds?')
 
 
     @classmethod

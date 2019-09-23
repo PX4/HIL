@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 import time
 
 import aircraft
@@ -117,7 +118,7 @@ class BasicAircraft(object):
         t_now = time.time()
         if t_now - self.t_out > 1:
             self.t_out = t_now
-            print 'imu {0:4d} Hz, gps {1:4d} Hz\n'.format(
-                self.imu_count, self.gps_count)
+            print('imu {0:4d} Hz, gps {1:4d} Hz\n'.format(
+                self.imu_count, self.gps_count))
             self.gps_count = 0
             self.imu_count = 0
