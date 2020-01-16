@@ -1,5 +1,6 @@
 #!/usr/bin/evn python
 
+from __future__ import print_function
 import time
 
 import pymavlink.mavwp as mavwp
@@ -18,18 +19,18 @@ class WaypointManager(object):
         self._transition_idle()
 
     def _transition_idle(self):
-        print 'transition idle'
+        print('transition idle')
         self.state = 'IDLE'
         self.index = -1
 
     def _transition_sending_count(self):
-        print 'transition sending count'
+        print('transition sending count')
         self.state = 'SENDING_COUNT'
         self.index = -1
         self.send_time = time.time()
 
     def _transition_sending_waypoint(self):
-        print 'transition sending waypoints'
+        print('transition sending waypoints')
         self.state = 'SENDING_WAYPOINT'
 
     def set_waypoints(self, waypoints):
@@ -47,7 +48,7 @@ class WaypointManager(object):
                 self.mavfile.waypoint_clear_all_send()
                 self.mavfile.waypoint_count_send(self.count)
                 self.mavfile.waypoint_count_send(self.count)
-                print "Sent waypoint count of %u" % self.count
+                print("Sent waypoint count of %u" % self.count)
 
         elif self.state == 'SENDING_WAYPOINT':
 
@@ -56,7 +57,7 @@ class WaypointManager(object):
                 wp = self.loader.wp(self.index)
                 self.mavfile.mav.send(wp)
                 self.mavfile.mav.send(wp)
-                print "Sent waypoint %u" % (self.index)
+                print("Sent waypoint %u" % (self.index))
 
                 # this seems to prompt vehicle to resend request
                 #self.mavfile.waypoint_count_send(self.count)
@@ -65,8 +66,8 @@ class WaypointManager(object):
     def process_msg(self, msg):
 
         if msg.get_type() == 'MISSION_REQUEST':
-            print 'received request for {0:d} from {1:d}:{2:d}'.format(
-                msg.seq, msg.get_srcSystem(),  msg.get_srcComponent())
+            print('received request for {0:d} from {1:d}:{2:d}'.format(
+                msg.seq, msg.get_srcSystem(),  msg.get_srcComponent()))
 
         # transition to sending waypoints as soon as mission request received
         if self.state == 'SENDING_COUNT':
@@ -81,9 +82,9 @@ class WaypointManager(object):
 
             if msg.get_type() == 'MISSION_ACK':
                 if self.index == self.count - 1:
-                    print "Waypoint uploading complete"
+                    print("Waypoint uploading complete")
                 else:
-                    print "Error: received waypoint ack before sending all waypoints!"
+                    print("Error: received waypoint ack before sending all waypoints!")
                 self._transition_idle()
 
             if msg.get_type() == 'MISSION_REQUEST':
@@ -92,8 +93,8 @@ class WaypointManager(object):
 
                 # should never exceed waypoint count
                 if msg.seq >  self.count - 1:
-                    print "Error: {0:d} waypoints, but waypoint {1:d} requested".format(
-                        self.count,msg.seq)
+                    print("Error: {0:d} waypoints, but waypoint {1:d} requested".format(
+                        self.count,msg.seq))
                     self._transition_idle()
                 elif msg.seq == self.index + 1:
                     self.index += 1
